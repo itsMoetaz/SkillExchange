@@ -1,5 +1,7 @@
 const User = require('../models/User');
 const { generateToken } = require('../middleware/auth');
+const crypto = require('crypto');
+const { sendPasswordResetEmail, sendWelcomeEmail } = require('../utils/emailService');
 
 const register = async (req, res) => {
   try {
@@ -23,6 +25,10 @@ const register = async (req, res) => {
 
     // Generate token
     const token = generateToken(user._id);
+
+    sendWelcomeEmail(email, name).catch(error => {
+      console.error('Failed to send welcome email:', error);
+    });
 
     res.status(201).json({
       success: true,
@@ -152,9 +158,119 @@ const getMe = async (req, res) => {
   }
 };
 
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'No user found with that email'
+      });
+    }
+
+    // Generate reset token directly here
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    
+    // Hash token and save to database
+    user.passwordResetToken = crypto
+      .createHash('sha256')
+      .update(resetToken)
+      .digest('hex');
+    
+    user.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+    
+    await user.save({ validateBeforeSave: false });
+
+    // Send password reset email
+    const emailResult = await sendPasswordResetEmail(email, resetToken);
+
+    if (emailResult.success) {
+      res.status(200).json({
+        success: true,
+        message: 'Password reset email sent successfully'
+      });
+    } else {
+      // Reset the token fields if email failed
+      user.passwordResetToken = undefined;
+      user.passwordResetExpires = undefined;
+      await user.save({ validateBeforeSave: false });
+
+      res.status(500).json({
+        success: false,
+        message: 'Error sending password reset email. Please try again.'
+      });
+    }
+
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Email could not be sent'
+    });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    // Get token from header instead of URL or body
+    const token = req.headers['x-reset-token'];
+    const { password } = req.body;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Reset token is required in X-Reset-Token header'
+      });
+    }
+
+    // Hash the token to compare with stored token
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await User.findOne({
+      passwordResetToken: hashedToken,
+      passwordResetExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token is invalid or has expired'
+      });
+    }
+
+    // Set new password
+    user.password = password;
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save();
+
+    // Generate new JWT token
+    const jwtToken = generateToken(user._id);
+
+    res.status(200).json({
+      success: true,
+      message: 'Password reset successful',
+      data: {
+        token: jwtToken
+      }
+    });
+
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Password reset failed'
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
   logout,
-  getMe
+  getMe,
+  forgotPassword,
+  resetPassword
 };
