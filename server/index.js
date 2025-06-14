@@ -20,8 +20,19 @@ app.use(generalLimiter);
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? ['https://yourfrontenddomain.com'] 
-    : ['http://localhost:3000', 'http://localhost:5173'],
-  credentials: true
+    : ['http://localhost:3000', 'http://localhost:3001'],
+  credentials: true, // Allow cookies/auth headers
+  optionsSuccessStatus: 200, // For legacy browser support
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: [
+    'Origin',
+    'X-Requested-With',
+    'Content-Type',
+    'Accept',
+    'Authorization',
+    'Cache-Control',
+    'X-Access-Token'
+  ],
 }));
 
 app.use(express.json({ limit: '10mb' }));
