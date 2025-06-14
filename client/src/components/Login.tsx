@@ -574,8 +574,6 @@ const Login: React.FC = () => {
                       className={`absolute right-4 sm:right-5 lg:right-6 top-1/2 transform -translate-y-1/2 transition-colors duration-300 ${
                         isDark ? 'text-gray-400 hover:text-gray-300' : 'text-gray-500 hover:text-gray-700'
                       }`}
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.95 }}
                     >
                       {showPassword ? 
                         <EyeSlashIcon className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7" /> : 

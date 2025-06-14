@@ -338,10 +338,11 @@ const PasswordReset: React.FC = () => {
     return { strength, text: 'Strong', color: isDark ? 'text-green-400' : 'text-green-500' };
   }, [isDark]);
 
-  const passwordStrength = useMemo(() => 
-    getPasswordStrength(passwordForm.watch('password')), 
-    [passwordForm.watch('password'), getPasswordStrength]
-  );
+    const password = passwordForm.watch('password');
+    const passwordStrength = useMemo(() => 
+    getPasswordStrength(password), 
+    [password, getPasswordStrength]
+    );
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -682,8 +683,6 @@ const PasswordReset: React.FC = () => {
                           className={`absolute right-4 top-1/2 transform -translate-y-1/2 transition-colors duration-300 ${
                             isDark ? 'text-gray-400 hover:text-gray-300' : 'text-gray-500 hover:text-gray-700'
                           }`}
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.95 }}
                         >
                           {showPassword ? 
                             <EyeSlashIcon className="h-5 w-5" /> : 
@@ -770,20 +769,18 @@ const PasswordReset: React.FC = () => {
                         <LockClosedIcon className={`h-5 w-5 absolute left-4 top-1/2 transform -translate-y-1/2 transition-colors duration-1000 ${
                           isDark ? 'text-gray-400' : 'text-gray-500'
                         }`} />
-                        <motion.button
-                          type="button"
-                          onClick={toggleConfirmPassword}
-                          className={`absolute right-4 top-1/2 transform -translate-y-1/2 transition-colors duration-300 ${
-                            isDark ? 'text-gray-400 hover:text-gray-300' : 'text-gray-500 hover:text-gray-700'
-                          }`}
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.95 }}
-                        >
-                          {showConfirmPassword ? 
-                            <EyeSlashIcon className="h-5 w-5" /> : 
-                            <EyeIcon className="h-5 w-5" />
-                          }
-                        </motion.button>
+<button
+  type="button"
+  onClick={toggleConfirmPassword}
+  className={`absolute right-4 top-1/2 transform -translate-y-1/2 transition-colors duration-300 ${
+    isDark ? 'text-gray-400 hover:text-gray-300' : 'text-gray-500 hover:text-gray-700'
+  }`}
+>
+  {showConfirmPassword ? 
+    <EyeSlashIcon className="h-5 w-5" /> : 
+    <EyeIcon className="h-5 w-5" />
+  }
+</button>
                       </div>
                       <AnimatePresence>
                         {passwordForm.formState.errors.confirmPassword && (
