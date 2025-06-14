@@ -1,8 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
-import { ArrowRightOnRectangleIcon, UserCircleIcon, AcademicCapIcon, SparklesIcon } from '@heroicons/react/24/outline';
-
+import { ArrowRightOnRectangleIcon, UserCircleIcon } from '@heroicons/react/24/outline';
 const Dashboard: React.FC = () => {
   const { user, logout } = useAuth();
 

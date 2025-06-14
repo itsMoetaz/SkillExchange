@@ -462,7 +462,7 @@ const Register: React.FC = () => {
   }, [clearError]);
 
   const onSubmit = useCallback(async (data: FormData) => {
-    const { confirmPassword: _, ...userData } = data;
+    const { confirmPassword, ...userData } = data;
         const result = await registerUser(userData);
     if (result.type === 'auth/register/fulfilled') {
       navigate('/dashboard');
