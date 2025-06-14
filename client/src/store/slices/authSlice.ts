@@ -1,8 +1,12 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 
 const API_BASE_URL = 'http://localhost:3000/api';
 
+interface ApiError {
+  message: string;
+  errors?: Record<string, string[]>;
+}
 export interface User {
   id: string;
   name: string;
@@ -37,8 +41,12 @@ export const registerUser = createAsyncThunk(
       const { token, user } = response.data.data;
       localStorage.setItem('token', token);
       return { token, user };
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Registration failed');
+    } catch (error) {
+      if (error instanceof AxiosError && error.response?.data) {
+        const apiError = error.response.data as ApiError;
+        return rejectWithValue(apiError.message || 'Registration failed');
+      }
+      return rejectWithValue('Registration failed');
     }
   }
 );
@@ -51,8 +59,12 @@ export const loginUser = createAsyncThunk(
       const { token, user } = response.data.data;
       localStorage.setItem('token', token);
       return { token, user };
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Login failed');
+    } catch (error) {
+      if (error instanceof AxiosError && error.response?.data) {
+        const apiError = error.response.data as ApiError;
+        return rejectWithValue(apiError.message || 'Login failed');
+      }
+      return rejectWithValue('Login failed');
     }
   }
 );
@@ -73,9 +85,13 @@ export const getCurrentUser = createAsyncThunk(
       });
       
       return response.data.data.user;
-    } catch (error: any) {
+    } catch (error) {
       localStorage.removeItem('token');
-      return rejectWithValue(error.response?.data?.message || 'Failed to get user');
+      if (error instanceof AxiosError && error.response?.data) {
+        const apiError = error.response.data as ApiError;
+        return rejectWithValue(apiError.message || 'Failed to get user');
+      }
+      return rejectWithValue('Failed to get user');
     }
   }
 );

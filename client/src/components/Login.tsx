@@ -18,8 +18,7 @@ import {
   UserGroupIcon,
   LightBulbIcon,
   BookOpenIcon,
-  RocketLaunchIcon,
-  StarIcon
+  RocketLaunchIcon
 } from '@heroicons/react/24/outline';
 
 const schema = yup.object({

@@ -18,11 +18,8 @@ import {
   RocketLaunchIcon,
   StarIcon,
   SparklesIcon,
-  HeartIcon,
   AcademicCapIcon,
-  UserGroupIcon,
-  LightBulbIcon,
-  BookOpenIcon
+  UserGroupIcon
 } from '@heroicons/react/24/outline';
 
 const schema = yup.object({
@@ -465,8 +462,8 @@ const Register: React.FC = () => {
   }, [clearError]);
 
   const onSubmit = useCallback(async (data: FormData) => {
-    const { confirmPassword, ...userData } = data;
-    const result = await registerUser(userData);
+    const { confirmPassword: _, ...userData } = data;
+        const result = await registerUser(userData);
     if (result.type === 'auth/register/fulfilled') {
       navigate('/dashboard');
     }
