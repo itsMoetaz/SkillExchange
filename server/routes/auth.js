@@ -1,5 +1,5 @@
 const express = require('express');
-const { register, login, logout, getMe, forgotPassword, resetPassword } = require('../controllers/authController');
+const { register, login, logout, getMe, forgotPassword, resetPassword, verifyResetCode } = require('../controllers/authController');
 const { validateRegister, validateLogin } = require('../middleware/validation');
 const { protect } = require('../middleware/auth');
 const { authLimiter } = require('../middleware/security');
@@ -325,6 +325,7 @@ router.post('/forgot-password', authLimiter, [
  *         description: Server error
  */
 router.post('/reset-password', authLimiter, [
+  body('resetToken').notEmpty().withMessage('Reset token is required'),
   body('password')
     .isLength({ min: 6 })
     .withMessage('Password must be at least 6 characters')
@@ -332,5 +333,11 @@ router.post('/reset-password', authLimiter, [
     .withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number'),
   handleValidationErrors
 ], resetPassword);
+
+router.post('/verify-reset-code', authLimiter, [
+  body('email').isEmail().normalizeEmail().withMessage('Please provide a valid email'),
+  body('code').isLength({ min: 6, max: 6 }).withMessage('Code must be 6 digits'),
+  handleValidationErrors
+], verifyResetCode);
 
 module.exports = router;

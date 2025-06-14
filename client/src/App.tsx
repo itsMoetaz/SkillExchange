@@ -9,6 +9,8 @@ import Register from './components/Register';
 import Dashboard from './components/Dashboard';
 import ThemeToggle from './components/ThemeToggle';
 import { useAuth } from './hooks/useAuth';
+import PasswordReset from './components/PasswordReset';
+
 import './App.css';
 
 const AppContent: React.FC = () => {
@@ -47,6 +49,7 @@ const AppContent: React.FC = () => {
             path="/dashboard" 
             element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />} 
           />
+          <Route path="/forgot-password" element={<PasswordReset />} />
           <Route 
             path="/" 
             element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />} 

@@ -42,7 +42,9 @@ const userSchema = new mongoose.Schema({
   },
   emailVerificationToken: String,
   passwordResetToken: String,
+  passwordResetCode: String, 
   passwordResetExpires: Date,
+  passwordResetCodeExpires: Date, 
   lastLogin: Date,
   isActive: {
     type: Boolean,

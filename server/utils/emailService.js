@@ -201,7 +201,119 @@ const sendWelcomeEmail = async (email, name) => {
   }
 };
 
+const sendPasswordResetCodeEmail = async (email, resetCode, name) => {
+  try {
+    const transporter = createGmailTransporter();
+
+    const mailOptions = {
+      from: process.env.EMAIL_FROM,
+      to: email,
+      subject: '🔐 Your SkillExchange Password Reset Code',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            .container { max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; }
+            .header { background-color: #f59e0b; color: white; padding: 25px; text-align: center; border-radius: 12px 12px 0 0; }
+            .content { padding: 30px; background-color: #fffbeb; border: 1px solid #fbbf24; }
+            .code-box { 
+              background: linear-gradient(135deg, #f59e0b, #d97706); 
+              color: white; 
+              padding: 20px; 
+              border-radius: 12px; 
+              text-align: center; 
+              font-size: 32px; 
+              font-weight: bold; 
+              letter-spacing: 8px; 
+              margin: 25px 0; 
+              box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+            }
+            .footer { padding: 20px; text-align: center; color: #6b7280; font-size: 14px; background-color: #f9fafb; border-radius: 0 0 12px 12px; }
+            .warning { 
+              background-color: #fee2e2; 
+              border: 1px solid #fca5a5; 
+              color: #dc2626; 
+              padding: 15px; 
+              border-radius: 8px; 
+              margin: 20px 0; 
+            }
+            .steps { background-color: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #0ea5e9; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>🔐 Password Reset Code</h1>
+            </div>
+            <div class="content">
+              <h2>Hello ${name}!</h2>
+              <p>We received a request to reset your password for your SkillExchange account.</p>
+              
+              <p><strong>Your verification code is:</strong></p>
+              <div class="code-box">${resetCode}</div>
+              
+              <div class="steps">
+                <h3>📋 Next Steps:</h3>
+                <ol>
+                  <li>Go back to the password reset page</li>
+                  <li>Enter this 6-digit code: <strong>${resetCode}</strong></li>
+                  <li>Create your new password</li>
+                  <li>Sign in with your new credentials</li>
+                </ol>
+              </div>
+              
+              <div class="warning">
+                <h4>⚠️ Important Security Notice:</h4>
+                <ul style="margin: 10px 0;">
+                  <li>This code will expire in <strong>10 minutes</strong></li>
+                  <li>If you didn't request this reset, please ignore this email</li>
+                  <li>Never share this code with anyone</li>
+                  <li>SkillExchange will never ask for this code via phone or email</li>
+                </ul>
+              </div>
+              
+              <p>If the code doesn't work, you can request a new one from the forgot password page.</p>
+              <p>Need help? Contact our support team.</p>
+              <p>Best regards,<br><strong>The SkillExchange Security Team</strong></p>
+            </div>
+            <div class="footer">
+              <p>This email was sent to <strong>${email}</strong></p>
+              <p>© 2025 SkillExchange. All rights reserved.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+        Password Reset Code - SkillExchange
+        
+        Hello ${name}!
+        
+        Your password reset verification code is: ${resetCode}
+        
+        This code will expire in 10 minutes.
+        
+        If you didn't request this password reset, please ignore this email.
+        
+        Best regards,
+        The SkillExchange Team
+      `
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log('✅ Password reset code email sent:', info.messageId);
+    return { success: true, messageId: info.messageId };
+
+  } catch (error) {
+    console.error('❌ Error sending reset code email:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   sendPasswordResetEmail,
+  sendPasswordResetCodeEmail,
   sendWelcomeEmail
 };

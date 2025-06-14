@@ -1,7 +1,7 @@
 const User = require('../models/User');
 const { generateToken } = require('../middleware/auth');
 const crypto = require('crypto');
-const { sendPasswordResetEmail, sendWelcomeEmail } = require('../utils/emailService');
+const { sendPasswordResetCodeEmail, sendWelcomeEmail } = require('../utils/emailService');
 
 const register = async (req, res) => {
   try {
@@ -170,36 +170,40 @@ const forgotPassword = async (req, res) => {
       });
     }
 
-    // Generate reset token directly here
-    const resetToken = crypto.randomBytes(32).toString('hex');
+    // Generate 6-digit verification code
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
     
-    // Hash token and save to database
-    user.passwordResetToken = crypto
+    // Hash the code and save to database
+    user.passwordResetCode = crypto
       .createHash('sha256')
-      .update(resetToken)
+      .update(resetCode)
       .digest('hex');
     
-    user.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+    user.passwordResetCodeExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
     
     await user.save({ validateBeforeSave: false });
 
-    // Send password reset email
-    const emailResult = await sendPasswordResetEmail(email, resetToken);
+    // Send verification code email
+    const emailResult = await sendPasswordResetCodeEmail(email, resetCode, user.name);
 
     if (emailResult.success) {
       res.status(200).json({
         success: true,
-        message: 'Password reset email sent successfully'
+        message: 'Password reset code sent to your email',
+        data: {
+          email: email,
+          expiresIn: 10 // minutes
+        }
       });
     } else {
-      // Reset the token fields if email failed
-      user.passwordResetToken = undefined;
-      user.passwordResetExpires = undefined;
+      // Reset the code fields if email failed
+      user.passwordResetCode = undefined;
+      user.passwordResetCodeExpires = undefined;
       await user.save({ validateBeforeSave: false });
 
       res.status(500).json({
         success: false,
-        message: 'Error sending password reset email. Please try again.'
+        message: 'Error sending reset code. Please try again.'
       });
     }
 
@@ -212,21 +216,76 @@ const forgotPassword = async (req, res) => {
   }
 };
 
-const resetPassword = async (req, res) => {
+// Add new function for code verification
+const verifyResetCode = async (req, res) => {
   try {
-    // Get token from header instead of URL or body
-    const token = req.headers['x-reset-token'];
-    const { password } = req.body;
+    const { email, code } = req.body;
 
-    if (!token) {
+    if (!email || !code) {
       return res.status(400).json({
         success: false,
-        message: 'Reset token is required in X-Reset-Token header'
+        message: 'Email and verification code are required'
+      });
+    }
+
+    // Hash the provided code
+    const hashedCode = crypto.createHash('sha256').update(code.toString()).digest('hex');
+
+    const user = await User.findOne({
+      email,
+      passwordResetCode: hashedCode,
+      passwordResetCodeExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired verification code'
+      });
+    }
+
+    // Generate a temporary token for password reset
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    user.passwordResetToken = crypto
+      .createHash('sha256')
+      .update(resetToken)
+      .digest('hex');
+    
+    user.passwordResetExpires = Date.now() + 30 * 60 * 1000; // 30 minutes for password reset
+    await user.save({ validateBeforeSave: false });
+
+    res.status(200).json({
+      success: true,
+      message: 'Code verified successfully',
+      data: {
+        resetToken,
+        expiresIn: 30 // minutes
+      }
+    });
+
+  } catch (error) {
+    console.error('Verify reset code error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Code verification failed'
+    });
+  }
+};
+
+// Update the resetPassword function (around line 210)
+const resetPassword = async (req, res) => {
+  try {
+    const { resetToken, password } = req.body;
+
+    if (!resetToken || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Reset token and new password are required'
       });
     }
 
     // Hash the token to compare with stored token
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
 
     const user = await User.findOne({
       passwordResetToken: hashedToken,
@@ -236,14 +295,16 @@ const resetPassword = async (req, res) => {
     if (!user) {
       return res.status(400).json({
         success: false,
-        message: 'Token is invalid or has expired'
+        message: 'Invalid or expired reset token'
       });
     }
 
-    // Set new password
+    // Set new password and clear reset fields
     user.password = password;
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
+    user.passwordResetCode = undefined;
+    user.passwordResetCodeExpires = undefined;
     await user.save();
 
     // Generate new JWT token
@@ -253,7 +314,13 @@ const resetPassword = async (req, res) => {
       success: true,
       message: 'Password reset successful',
       data: {
-        token: jwtToken
+        token: jwtToken,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role
+        }
       }
     });
 
@@ -272,5 +339,6 @@ module.exports = {
   logout,
   getMe,
   forgotPassword,
+  verifyResetCode,
   resetPassword
 };
