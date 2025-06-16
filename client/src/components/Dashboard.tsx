@@ -2,6 +2,8 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
 import { ArrowRightOnRectangleIcon, UserCircleIcon } from '@heroicons/react/24/outline';
+import { Link } from 'react-router-dom';
+
 const Dashboard: React.FC = () => {
   const { user, logout } = useAuth();
 
@@ -38,6 +40,9 @@ const Dashboard: React.FC = () => {
                   Welcome back, {user?.name}! 🎉
                 </motion.h1>
                 <p className="text-gray-600 dark:text-gray-400">Ready to continue your learning journey?</p>
+                <Link to="/profile/setup" className="btn btn-primary">
+  Complete Your Profile
+</Link>
               </div>
             </div>
             <motion.button 

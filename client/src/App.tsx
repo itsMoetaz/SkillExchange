@@ -10,12 +10,14 @@ import Dashboard from './components/Dashboard';
 import ThemeToggle from './components/ThemeToggle';
 import { useAuth } from './hooks/useAuth';
 import PasswordReset from './components/PasswordReset';
+import ProfileSetup from './components/Profile/ProfileSetup'; // Add this import
 
 import './App.css';
 
 const AppContent: React.FC = () => {
   const { theme } = useSelector((state: RootState) => state.theme);
   const { isAuthenticated, getCurrentUser } = useAuth();
+  const { profile, profileCompletion } = useSelector((state: RootState) => state.profile);
   const dispatch = useDispatch();
 
   useEffect(() => {
@@ -31,7 +33,9 @@ const AppContent: React.FC = () => {
       getCurrentUser();
     }
   }, [getCurrentUser, isAuthenticated]);
-
+  const needsProfileSetup = () => {
+    return isAuthenticated && profile && profileCompletion < 50;
+  };
   return (
     <Router>
       <div className="App">
@@ -49,10 +53,16 @@ const AppContent: React.FC = () => {
             path="/dashboard" 
             element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />} 
           />
+          <Route 
+          path="/profile/setup" 
+          element={isAuthenticated ? <ProfileSetup /> : <Navigate to="/login" />} 
+          />
           <Route path="/forgot-password" element={<PasswordReset />} />
           <Route 
             path="/" 
-            element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />} 
+            element={<Navigate to={isAuthenticated 
+              ? (needsProfileSetup() ? "/profile/setup" : "/dashboard") 
+              : "/login"} />} 
           />
         </Routes>
       </div>

@@ -303,7 +303,6 @@ const sendPasswordResetCodeEmail = async (email, resetCode, name) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Password reset code email sent:', info.messageId);
     return { success: true, messageId: info.messageId };
 
   } catch (error) {
