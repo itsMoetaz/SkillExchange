@@ -12,28 +12,40 @@ import type { RootState, AppDispatch } from '../store/store';
 import { loginUser, clearError } from '../store/slices/authSlice';
 import { showToast } from './Common/Toast';
 
-type ErrorWithMessage = {
+// Proper error type definitions
+interface ApiError {
   message: string;
-};
-
-function isErrorWithMessage(error: unknown): error is ErrorWithMessage {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "message" in error &&
-    typeof (error as Record<string, unknown>).message === "string"
-  );
+  status?: number;
 }
 
-function toErrorWithMessage(maybeError: unknown): ErrorWithMessage {
-  if (isErrorWithMessage(maybeError)) return maybeError;
+interface SerializedError {
+  name?: string;
+  message?: string;
+  stack?: string;
+}
 
-  try {
-    return new Error(JSON.stringify(maybeError));
-  } catch {
-    return new Error(String(maybeError));
+type LoginError = ApiError | SerializedError | string;
+
+// Helper function to extract error message
+const getErrorMessage = (error: unknown): string => {
+  if (typeof error === 'string') {
+    return error;
   }
-}
+  
+  if (error && typeof error === 'object') {
+    // Check for API error format
+    if ('message' in error && typeof error.message === 'string') {
+      return error.message;
+    }
+    
+    // Check for serialized error format
+    if ('name' in error && 'message' in error) {
+      return (error as SerializedError).message || 'An error occurred';
+    }
+  }
+  
+  return 'An unexpected error occurred';
+};
 
 const Login: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -51,8 +63,8 @@ const Login: React.FC = () => {
   const { theme } = useSelector((state: RootState) => state.theme);
   const isDark = theme === 'dark';
 
-  // Get the intended destination
-  const from = (location.state as any)?.from?.pathname || '/dashboard';
+  // Get the intended destination with proper typing
+  const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname || '/dashboard';
 
   // Redirect if already logged in
   useEffect(() => {
@@ -66,8 +78,6 @@ const Login: React.FC = () => {
     dispatch(clearError());
   }, [dispatch]);
 
-
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -77,7 +87,6 @@ const Login: React.FC = () => {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    const loadingToast = showToast.loading('Signing you in...');
     e.preventDefault();
     
     if (!formData.email || !formData.password) {
@@ -85,21 +94,16 @@ const Login: React.FC = () => {
       return;
     }
 
+    const loadingToast = showToast.loading('Signing you in...');
+
     try {
       await dispatch(loginUser(formData)).unwrap();
       showToast.dismiss(loadingToast);
       showToast.success('Welcome back! 🎉');
       navigate(from, { replace: true });
     } catch (error: unknown) {
-    showToast.dismiss(loadingToast);
-      let errorMessage = 'Demo login failed. Please try again.';
-      
-      if (error && typeof error === 'object' && 'message' in error) {
-        errorMessage = (error as any).message;
-      } else if (typeof error === 'string') {
-        errorMessage = error;
-      }
-      
+      showToast.dismiss(loadingToast);
+      const errorMessage = getErrorMessage(error);
       showToast.error(errorMessage);
     } 
   };
@@ -109,24 +113,18 @@ const Login: React.FC = () => {
       email: 'demo@skillexchange.com',
       password: 'demo123'
     };
-      const loadingToast = showToast.loading('Signing you in...');
+    
+    const loadingToast = showToast.loading('Signing you in...');
 
     try {
       await dispatch(loginUser(demoCredentials)).unwrap();
       showToast.dismiss(loadingToast);
-    showToast.success('Logged in with demo account!');    
+      showToast.success('Logged in with demo account! 🚀');    
       navigate('/dashboard', { replace: true });
     } catch (error: unknown) {
-    showToast.dismiss(loadingToast);
-      let errorMessage = 'Demo login failed. Please try again.';
-      
-      if (error && typeof error === 'object' && 'message' in error) {
-        errorMessage = (error as any).message;
-      } else if (typeof error === 'string') {
-        errorMessage = error;
-      }
-      
-      showToast.error(errorMessage);
+      showToast.dismiss(loadingToast);
+      const errorMessage = getErrorMessage(error);
+      showToast.error(errorMessage || 'Demo login failed. Please try again.');
     } 
   };
 
