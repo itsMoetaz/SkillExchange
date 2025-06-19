@@ -103,6 +103,18 @@ export const deleteSkill = createAsyncThunk(
   }
 );
 
+export const deleteAccount = createAsyncThunk(
+  'profile/deleteAccount',
+  async (data: { reason?: string }, { rejectWithValue }) => {
+    try {
+      await profileService.deleteAccount(data.reason);
+      return;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to delete account');
+    }
+  }
+);
+
 const profileSlice = createSlice({
   name: 'profile',
   initialState,
@@ -132,6 +144,20 @@ const profileSlice = createSlice({
         state.isLoading = false;
         state.error = action.payload as string;
       })
+
+      .addCase(deleteAccount.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+        })
+        .addCase(deleteAccount.fulfilled, (state) => {
+          state.isLoading = false;
+          state.profile = null;
+          state.profileCompletion = 0;
+        })
+        .addCase(deleteAccount.rejected, (state, action) => {
+          state.isLoading = false;
+          state.error = action.payload as string;
+        })
       
       // Update Profile
       .addCase(updateProfile.pending, (state) => {

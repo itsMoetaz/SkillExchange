@@ -64,10 +64,11 @@ html, body {
 }
 
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  width: 100%;        /* Changed from max-width: 1280px */
+  max-width: none;    /* Explicitly remove max width */
+  margin: 0;          /* Remove default margin */
+  padding: 0;         /* Remove default padding */
+  text-align: left;   /* Left align is better for most dashboard content */
 }
 
 .logo {

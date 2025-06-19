@@ -157,6 +157,26 @@ const uploadAvatar = async (req, res) => {
   }
 };
 
+const deleteAccount = async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const userId = req.user.id;
+    
+    // Delete the user
+    await User.findByIdAndDelete(userId);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Account deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete account error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete account'
+    });
+  }
+};
 // Delete avatar
 const deleteAvatar = async (req, res) => {
   try {
@@ -416,5 +436,6 @@ module.exports = {
   updateSkill,
   deleteSkill,
   getSkillCategories,
-  upload
+  upload,
+  deleteAccount
 };

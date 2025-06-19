@@ -85,6 +85,13 @@ export const profileService = {
     return response.data.data;
   },
 
+  deleteAccount: async (reason?: string): Promise<void> => {
+  const response = await apiClient.delete('/profile/account', {
+    data: { reason }
+  });
+  return response.data.data;
+},
+
   // Get skill categories
   getSkillCategories: async (): Promise<{ categories: string[] }> => {
     const response = await apiClient.get('/profile/categories');

@@ -8,7 +8,8 @@ const {
   updateSkill,
   deleteSkill,
   getSkillCategories,
-  upload
+  upload,
+  deleteAccount
 } = require('../controllers/profileController');
 const { protect } = require('../middleware/auth');
 const { body, validationResult } = require('express-validator');
@@ -79,5 +80,7 @@ router.delete('/skills/:skillId', protect, deleteSkill);
 
 // Categories route
 router.get('/categories', getSkillCategories);
+// Add this route
+router.delete('/delete-account', protect, deleteAccount);
 
 module.exports = router;
