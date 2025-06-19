@@ -18,7 +18,7 @@ import {
   ArrowLeftIcon,
   
 } from '@heroicons/react/24/outline';
-import { useForm, Controller, type Resolver, type SubmitHandler, } from 'react-hook-form';
+import { useForm,  type Resolver, type SubmitHandler, } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { SKILL_CATEGORIES, SKILL_LEVELS, MEETING_TYPES } from '../../types/profile';

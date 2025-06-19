@@ -86,12 +86,28 @@ const Skills: React.FC = () => {
     if (initialQuery || initialCategory) {
       performSearch({
         query: initialQuery,
-        ...filters,
         category: initialCategory,
+        level: [],
+        type: 'both' as const,
+        location: '',
+        rating: 0,
+        sortBy: 'relevance' as const,
         page: 1
       });
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array with eslint disable for initial mount only
+
+  // Handle URL param changes separately
+  useEffect(() => {
+    const query = searchParams.get('query') || '';
+    const category = searchParams.get('category') || '';
+    
+    setSearchQuery(query);
+    if (category !== filters.category) {
+      setFilters(prev => ({ ...prev, category }));
+    }
+  }, [searchParams, filters.category]);
 
   // Perform search function
   const performSearch = useCallback((searchFilters: any) => {

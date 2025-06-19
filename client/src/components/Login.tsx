@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import toast from 'react-hot-toast';
 import { 
   EyeIcon, 
   EyeSlashIcon, 
@@ -11,6 +10,30 @@ import {
 } from '@heroicons/react/24/outline';
 import type { RootState, AppDispatch } from '../store/store';
 import { loginUser, clearError } from '../store/slices/authSlice';
+import { showToast } from './Common/Toast';
+
+type ErrorWithMessage = {
+  message: string;
+};
+
+function isErrorWithMessage(error: unknown): error is ErrorWithMessage {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof (error as Record<string, unknown>).message === "string"
+  );
+}
+
+function toErrorWithMessage(maybeError: unknown): ErrorWithMessage {
+  if (isErrorWithMessage(maybeError)) return maybeError;
+
+  try {
+    return new Error(JSON.stringify(maybeError));
+  } catch {
+    return new Error(String(maybeError));
+  }
+}
 
 const Login: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -43,12 +66,7 @@ const Login: React.FC = () => {
     dispatch(clearError());
   }, [dispatch]);
 
-  // Show error toast
-  useEffect(() => {
-    if (error) {
-      toast.error(error);
-    }
-  }, [error]);
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -59,20 +77,31 @@ const Login: React.FC = () => {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
+    const loadingToast = showToast.loading('Signing you in...');
     e.preventDefault();
     
     if (!formData.email || !formData.password) {
-      toast.error('Please fill in all fields');
+      showToast.error('Please fill in all fields');
       return;
     }
 
     try {
       await dispatch(loginUser(formData)).unwrap();
-      toast.success('Welcome back!');
+      showToast.dismiss(loadingToast);
+      showToast.success('Welcome back! 🎉');
       navigate(from, { replace: true });
-    } catch (error: any) {
-      // Error handled by useEffect above
-    }
+    } catch (error: unknown) {
+    showToast.dismiss(loadingToast);
+      let errorMessage = 'Demo login failed. Please try again.';
+      
+      if (error && typeof error === 'object' && 'message' in error) {
+        errorMessage = (error as any).message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      showToast.error(errorMessage);
+    } 
   };
 
   const handleDemoLogin = async () => {
@@ -80,14 +109,25 @@ const Login: React.FC = () => {
       email: 'demo@skillexchange.com',
       password: 'demo123'
     };
-    
+      const loadingToast = showToast.loading('Signing you in...');
+
     try {
       await dispatch(loginUser(demoCredentials)).unwrap();
-      toast.success('Logged in with demo account!');
+      showToast.dismiss(loadingToast);
+    showToast.success('Logged in with demo account!');    
       navigate('/dashboard', { replace: true });
-    } catch (error: any) {
-      toast.error('Demo login failed');
-    }
+    } catch (error: unknown) {
+    showToast.dismiss(loadingToast);
+      let errorMessage = 'Demo login failed. Please try again.';
+      
+      if (error && typeof error === 'object' && 'message' in error) {
+        errorMessage = (error as any).message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      showToast.error(errorMessage);
+    } 
   };
 
   return (

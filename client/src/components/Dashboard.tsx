@@ -7,7 +7,6 @@ import {
   ArrowRightOnRectangleIcon, 
   UserCircleIcon,
   BellIcon,
-  ChatBubbleLeftRightIcon,
   CalendarIcon,
   UserGroupIcon,
   ClockIcon,
@@ -18,8 +17,6 @@ import {
   CheckCircleIcon,
   PlusIcon,
   StarIcon,
-  MapPinIcon,
-  EllipsisVerticalIcon,
   Cog6ToothIcon
 } from '@heroicons/react/24/outline';
 import { 
@@ -154,7 +151,7 @@ const Dashboard: React.FC = () => {
 
   // Close user menu when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = () => {
       if (showUserMenu) {
         setShowUserMenu(false);
       }

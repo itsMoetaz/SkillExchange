@@ -9,15 +9,16 @@ import Register from './components/Register';
 import Dashboard from './components/Dashboard';
 import { useAuth } from './hooks/useAuth';
 import PasswordReset from './components/PasswordReset';
-import ProfileSetup from './components/Profile/ProfileSetup'; // Add this import
-import Profile from './components/Profile/Profile'; // Add this import
-import Skills from './pages/Skills'; // Add this import
+import ProfileSetup from './components/Profile/ProfileSetup'; 
+import Profile from './components/Profile/Profile'; 
+import Skills from './pages/Skills'; 
 
 
 import './App.css';
 import { getProfile } from './store/slices/profileSlice';
 import { getCurrentUser } from './store/slices/authSlice';
 import Landing from './pages/Landing';
+import CustomToaster from './components/Common/Toast'; 
 
 const AppContent: React.FC = () => {
   const { theme } = useSelector((state: RootState) => state.theme);
@@ -90,6 +91,7 @@ const AppContent: React.FC = () => {
             isAuthenticated ? <Profile /> : <Navigate to="/login" />
           } />
         </Routes>
+        <CustomToaster />
       </div>
     </Router>
   );
