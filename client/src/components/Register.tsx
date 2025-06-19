@@ -14,6 +14,30 @@ import {
 import type { RootState, AppDispatch } from '../store/store';
 import { registerUser, clearError } from '../store/slices/authSlice';
 
+interface SerializedError {
+  name?: string;
+  message?: string;
+  stack?: string;
+}
+
+const getErrorMessage = (error: unknown): string => {
+  if (typeof error === 'string') {
+    return error;
+  }
+  
+  if (error && typeof error === 'object') {
+    if ('message' in error && typeof error.message === 'string') {
+      return error.message;
+    }
+    
+    if ('name' in error && 'message' in error) {
+      return (error as SerializedError).message || 'An error occurred';
+    }
+  }
+  
+  return 'An unexpected error occurred';
+};
+
 const Register: React.FC = () => {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -144,7 +168,9 @@ const Register: React.FC = () => {
     }));
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
     if (formData.interests.length === 0) {
       toast.error('Please select at least one interest');
       return;
@@ -154,12 +180,17 @@ const Register: React.FC = () => {
       return;
     }
 
+    const loadingToast = toast.loading('Creating your account...');
+
     try {
       await dispatch(registerUser(formData)).unwrap();
-      toast.success('Account created successfully!');
-      navigate('/skills?welcome=true');
-    } catch (error: any) {
-      // Error handled by useEffect above
+      toast.dismiss(loadingToast);
+      toast.success('Account created successfully! Welcome! 🎉');
+      navigate('/profile/setup');
+    } catch (error: unknown) {
+      toast.dismiss(loadingToast);
+      const errorMessage = getErrorMessage(error);
+      toast.error(errorMessage);
     }
   };
 

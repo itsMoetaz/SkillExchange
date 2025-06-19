@@ -396,7 +396,7 @@ const ProfileSetup: React.FC = () => {
   
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
-  const { profile, profileCompletion, isLoading, error, uploadingAvatar } = useSelector((state: RootState) => state.profile);
+  const { profile, error, uploadingAvatar } = useSelector((state: RootState) => state.profile);
   const { theme } = useSelector((state: RootState) => state.theme);
   const isDark = theme === 'dark';
 

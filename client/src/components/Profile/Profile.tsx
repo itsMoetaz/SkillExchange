@@ -73,10 +73,7 @@ interface SecurityData {
   confirmPassword: string;
 }
 
-interface DeleteAccountData {
-  confirmPassword: string;
-  reason?: string;
-}
+
 
 const Profile: React.FC = () => {
   const [activeTab, setActiveTab] = useState('profile');
