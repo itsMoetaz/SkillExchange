@@ -10,13 +10,8 @@ import {
 } from '@heroicons/react/24/outline';
 import type { RootState, AppDispatch } from '../store/store';
 import { loginUser, clearError } from '../store/slices/authSlice';
-import { showToast } from './Common/Toast';
+import { showToast } from '../utils/toastHelpers';
 
-// Proper error type definitions
-interface ApiError {
-  message: string;
-  status?: number;
-}
 
 interface SerializedError {
   name?: string;
@@ -24,7 +19,6 @@ interface SerializedError {
   stack?: string;
 }
 
-type LoginError = ApiError | SerializedError | string;
 
 // Helper function to extract error message
 const getErrorMessage = (error: unknown): string => {
@@ -59,21 +53,19 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  const { isLoading, error, user } = useSelector((state: RootState) => state.auth);
+  const { isLoading,  user } = useSelector((state: RootState) => state.auth);
   const { theme } = useSelector((state: RootState) => state.theme);
   const isDark = theme === 'dark';
 
   // Get the intended destination with proper typing
   const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname || '/dashboard';
 
-  // Redirect if already logged in
   useEffect(() => {
     if (user) {
       navigate(from, { replace: true });
     }
   }, [user, navigate, from]);
 
-  // Clear errors when component mounts
   useEffect(() => {
     dispatch(clearError());
   }, [dispatch]);

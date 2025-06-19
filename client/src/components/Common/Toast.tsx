@@ -149,10 +149,8 @@ const CustomToaster: React.FC = () => {
         className: '',
         duration: 4000,
         style: {
-          background: 'transparent',
-          boxShadow: 'none',
-          padding: 0,
-          margin: 0,
+          minWidth: '250px',
+          maxWidth: '400px',
         },
         
         // Custom styles for different types
