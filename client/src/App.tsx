@@ -19,6 +19,7 @@ import { getProfile } from './store/slices/profileSlice';
 import { getCurrentUser } from './store/slices/authSlice';
 import Landing from './pages/Landing';
 import CustomToaster from './components/Common/Toast'; 
+import UserProfile from './pages/UserProfile';
 
 const AppContent: React.FC = () => {
   const { theme } = useSelector((state: RootState) => state.theme);
@@ -78,7 +79,11 @@ const AppContent: React.FC = () => {
           <Route 
             path="/skills" 
             element={isAuthenticated ? <Skills /> : <Navigate to="/login" />} 
-          />          
+          />     
+<Route 
+  path="/profile/:userId" 
+  element={isAuthenticated ? <UserProfile /> : <Navigate to="/login" />} 
+/>    
           <Route path="/forgot-password" element={<PasswordReset />} />
 
           <Route 

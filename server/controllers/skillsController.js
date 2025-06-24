@@ -17,285 +17,184 @@ const searchSkills = async (req, res) => {
       limit = 12
     } = req.query;
 
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
-    const skip = (pageNum - 1) * limitNum;
+    const skip = (page - 1) * limit;
+    
+    console.log('Search parameters:', { query, category, level, type, page, limit });
 
-
-    // Build search filters for skills
-    let skillFilters = { isActive: true };
-
-    // Text search for skills
-    if (query.trim()) {
-      skillFilters.$or = [
-        { name: { $regex: query.trim(), $options: 'i' } },
-        { description: { $regex: query.trim(), $options: 'i' } },
-        { tags: { $in: [new RegExp(query.trim(), 'i')] } },
-        { searchKeywords: { $in: [new RegExp(query.trim(), 'i')] } },
-        { category: { $regex: query.trim(), $options: 'i' } },
-        { subcategory: { $regex: query.trim(), $options: 'i' } }
-      ];
+    // Build search filters for User skills
+    const userFilters = { isActive: true, 'skills.0': { $exists: true } };
+    
+    const userSkillConditions = [];
+    
+    if (query) {
+      userSkillConditions.push({
+        $or: [
+          { 'skills.name': { $regex: query, $options: 'i' } },
+          { 'skills.description': { $regex: query, $options: 'i' } },
+          { 'skills.tags': { $in: [new RegExp(query, 'i')] } },
+          { name: { $regex: query, $options: 'i' } },
+          { bio: { $regex: query, $options: 'i' } }
+        ]
+      });
     }
 
-    // Category filter for skills
     if (category) {
-      skillFilters.category = category;
+      userSkillConditions.push({ 'skills.category': category });
     }
 
-    // Rating filter for skills (based on average rating)
+    if (level && level.length > 0) {
+      userSkillConditions.push({ 'skills.level': { $in: level } });
+    }
+
+    if (location) {
+      userSkillConditions.push({
+        $or: [
+          { 'location.city': { $regex: location, $options: 'i' } },
+          { 'location.country': { $regex: location, $options: 'i' } }
+        ]
+      });
+    }
+
     if (rating > 0) {
-      skillFilters['stats.avgRating'] = { $gte: parseFloat(rating) };
+      userSkillConditions.push({ 'stats.rating': { $gte: rating } });
     }
 
-    // Level filter for skills (check if level exists in availableLevels)
-    if (Array.isArray(level) && level.length > 0) {
-      skillFilters.availableLevels = { $in: level };
-    } else if (level && !Array.isArray(level)) {
-      skillFilters.availableLevels = { $in: [level] };
-    }
-
-    // Type filter for skills (based on teaching/learning users)
     if (type === 'teaching') {
-      skillFilters['stats.teachingUsers'] = { $gt: 0 };
+      userSkillConditions.push({ 'skills.isTeaching': true });
     } else if (type === 'learning') {
-      skillFilters['stats.learningUsers'] = { $gt: 0 };
+      userSkillConditions.push({ 'skills.isLearning': true });
     }
 
-    // Build sort options for skills
-    let skillSortOptions = {};
+    if (userSkillConditions.length > 0) {
+      Object.assign(userFilters, { $and: userSkillConditions });
+    }
+
+    console.log('User filters:', JSON.stringify(userFilters, null, 2));
+
+    let userSkillsQuery = User.find(userFilters);
+    
     switch (sortBy) {
       case 'rating':
-        skillSortOptions = { 'stats.avgRating': -1, 'stats.totalUsers': -1 };
-        break;
-      case 'popularity':
-        skillSortOptions = { 'stats.totalUsers': -1, 'stats.avgRating': -1 };
-        break;
-      case 'recent':
-        skillSortOptions = { createdAt: -1 };
+        userSkillsQuery = userSkillsQuery.sort({ 'stats.rating': -1 });
         break;
       case 'experience':
-        skillSortOptions = { 'stats.totalSessions': -1, 'stats.avgRating': -1 };
-        break;
-      default: // relevance
-        if (query.trim()) {
-          skillSortOptions = { score: { $meta: 'textScore' }, popularityScore: -1 };
-          skillFilters.$text = { $search: query.trim() };
-        } else {
-          skillSortOptions = { popularityScore: -1, 'stats.totalUsers': -1 };
-        }
-    }
-
-
-    // Get skills with pagination
-    const skillsQuery = Skill.find(skillFilters);
-    
-    if (skillFilters.$text) {
-      skillsQuery.select({ score: { $meta: 'textScore' } });
-    }
-    
-    const skills = await skillsQuery
-      .sort(skillSortOptions)
-      .skip(skip)
-      .limit(limitNum)
-      .lean();
-
-    const totalSkills = await Skill.countDocuments(skillFilters);
-
-
-    // Now search for users with skills matching the criteria
-    let userPipeline = [];
-
-    // Start with basic user match
-    let userMatchFilters = {};
-
-    // Location filter for users
-    if (location.trim()) {
-      userMatchFilters.$or = [
-        { 'location.city': { $regex: location.trim(), $options: 'i' } },
-        { 'location.country': { $regex: location.trim(), $options: 'i' } },
-        { 'location.state': { $regex: location.trim(), $options: 'i' } }
-      ];
-    }
-
-    // Rating filter for users
-    if (rating > 0) {
-      userMatchFilters['stats.rating'] = { $gte: parseFloat(rating) };
-    }
-
-    // Text search in user fields
-    if (query.trim()) {
-      const queryOr = userMatchFilters.$or || [];
-      userMatchFilters.$or = [
-        ...queryOr,
-        { name: { $regex: query.trim(), $options: 'i' } },
-        { bio: { $regex: query.trim(), $options: 'i' } },
-        { 'skills.name': { $regex: query.trim(), $options: 'i' } }
-      ];
-    }
-
-    // Add initial match stage if we have user filters
-    if (Object.keys(userMatchFilters).length > 0) {
-      userPipeline.push({ $match: userMatchFilters });
-    }
-
-    // Unwind skills to filter at skill level
-    userPipeline.push({ $unwind: { path: '$skills', preserveNullAndEmptyArrays: false } });
-
-    // Build skill-level filters
-    let skillLevelFilters = {};
-
-    // Category filter at skill level
-    if (category) {
-      skillLevelFilters['skills.category'] = category;
-    }
-
-    // Level filter at skill level
-    if (Array.isArray(level) && level.length > 0) {
-      skillLevelFilters['skills.level'] = { $in: level };
-    } else if (level && !Array.isArray(level)) {
-      skillLevelFilters['skills.level'] = level;
-    }
-
-    // Type filter at skill level
-    if (type === 'teaching') {
-      skillLevelFilters['skills.isTeaching'] = true;
-    } else if (type === 'learning') {
-      skillLevelFilters['skills.isLearning'] = true;
-    }
-
-    // Skill name search
-    if (query.trim()) {
-      const skillQueryOr = skillLevelFilters.$or || [];
-      skillLevelFilters.$or = [
-        ...skillQueryOr,
-        { 'skills.name': { $regex: query.trim(), $options: 'i' } },
-        { 'skills.description': { $regex: query.trim(), $options: 'i' } }
-      ];
-    }
-
-    // Add skill-level match if we have filters
-    if (Object.keys(skillLevelFilters).length > 0) {
-      userPipeline.push({ $match: skillLevelFilters });
-    }
-
-    // Group back to get users with their matching skills
-    userPipeline.push({
-      $group: {
-        _id: '$_id',
-        name: { $first: '$name' },
-        email: { $first: '$email' },
-        avatar: { $first: '$avatar' },
-        location: { $first: '$location' },
-        bio: { $first: '$bio' },
-        stats: { $first: '$stats' },
-        skills: { $push: '$skills' }, // Keep all matching skills
-        createdAt: { $first: '$createdAt' },
-        updatedAt: { $first: '$updatedAt' }
-      }
-    });
-
-    // Sort users
-    let userSortOptions = {};
-    switch (sortBy) {
-      case 'rating':
-        userSortOptions = { 'stats.rating': -1, 'stats.totalSessions': -1 };
-        break;
-      case 'popularity':
-        userSortOptions = { 'stats.totalSessions': -1, 'stats.rating': -1 };
+        userSkillsQuery = userSkillsQuery.sort({ 'skills.yearsOfExperience': -1 });
         break;
       case 'recent':
-        userSortOptions = { createdAt: -1 };
-        break;
-      case 'experience':
-        userSortOptions = { 'stats.totalSessions': -1, 'stats.yearsOfExperience': -1 };
+        userSkillsQuery = userSkillsQuery.sort({ createdAt: -1 });
         break;
       default:
-        userSortOptions = { 'stats.rating': -1, 'stats.totalSessions': -1 };
+        userSkillsQuery = userSkillsQuery.sort({ 'stats.rating': -1, createdAt: -1 });
     }
 
-    userPipeline.push({ $sort: userSortOptions });
+    // Don't apply pagination to the initial query - we'll paginate the final results
+    const usersWithSkills = await userSkillsQuery
+      .select('name email avatar bio location skills stats createdAt')
+      .lean();
 
+    console.log(`Found ${usersWithSkills.length} users with skills`);
 
-    // Get total count before pagination
-    const totalUserPipeline = [...userPipeline, { $count: 'total' }];
-    const totalUserResult = await User.aggregate(totalUserPipeline);
-    const totalUserSkills = totalUserResult[0]?.total || 0;
+    // Process user skills - create separate entries for EACH skill
+    const userSkills = [];
+    
+    usersWithSkills.forEach(user => {
+      // Get all user's skills
+      let allUserSkills = user.skills || [];
 
-    // Add pagination to user pipeline
-    userPipeline.push(
-      { $skip: skip },
-      { $limit: limitNum }
-    );
+      // Filter skills based on search criteria (but keep all that match)
+      let filteredSkills = allUserSkills;
 
-    const userSkills = await User.aggregate(userPipeline);
+      if (query) {
+        filteredSkills = filteredSkills.filter(skill => 
+          skill.name?.toLowerCase().includes(query.toLowerCase()) ||
+          (skill.description && skill.description.toLowerCase().includes(query.toLowerCase())) ||
+          (skill.tags && skill.tags.some(tag => tag.toLowerCase().includes(query.toLowerCase()))) ||
+          user.name?.toLowerCase().includes(query.toLowerCase()) ||
+          (user.bio && user.bio.toLowerCase().includes(query.toLowerCase()))
+        );
+      }
 
+      if (category) {
+        filteredSkills = filteredSkills.filter(skill => skill.category === category);
+      }
 
-    // Format response
-    const response = {
-      success: true,
-      data: {
-        skills: skills.map(skill => ({
-          _id: skill._id,
+      if (level && level.length > 0) {
+        filteredSkills = filteredSkills.filter(skill => level.includes(skill.level));
+      }
+
+      if (type === 'teaching') {
+        filteredSkills = filteredSkills.filter(skill => skill.isTeaching);
+      } else if (type === 'learning') {
+        filteredSkills = filteredSkills.filter(skill => skill.isLearning);
+      }
+
+      // Create one entry for EACH skill that matches (not just the first one)
+      filteredSkills.forEach((skill, skillIndex) => {
+        userSkills.push({
+          _id: `${user._id}_${skill._id || skillIndex}`, // Unique ID for each user-skill combination
+          type: 'userSkill',
           name: skill.name,
           category: skill.category,
-          subcategory: skill.subcategory,
           description: skill.description,
-          tags: skill.tags,
-          availableLevels: skill.availableLevels,
-          userCount: skill.stats?.totalUsers || 0,
-          rating: skill.stats?.avgRating || 0,
-          isTeaching: (skill.stats?.teachingUsers || 0) > 0,
-          isLearning: (skill.stats?.learningUsers || 0) > 0,
-          level: skill.availableLevels?.[0] || 'intermediate',
-          trending: skill.trending,
-          popularityScore: skill.popularityScore,
-          createdAt: skill.createdAt
-        })),
-        userSkills: userSkills.map(user => ({
-          _id: user._id,
+          level: skill.level,
+          rating: user.stats?.rating || 0,
+          userCount: 1,
+          isTeaching: skill.isTeaching,
+          isLearning: skill.isLearning,
+          trending: false,
           user: {
             _id: user._id,
             name: user.name,
             email: user.email,
             avatar: user.avatar,
+            bio: user.bio,
             location: user.location,
-            bio: user.bio
+            rating: user.stats?.rating || 0,
+            totalSessions: user.stats?.totalSessions || 0,
+            totalReviews: user.stats?.totalReviews || 0
           },
-          skills: user.skills,
-          rating: user.stats?.rating || 0,
-          totalSessions: user.stats?.totalSessions || 0,
+          primarySkill: skill, // This specific skill
+          skills: [skill], // Just this one skill for this entry
+          skillCount: 1, // One skill per entry
+          allUserSkills: filteredSkills, // All user's skills for context
+          totalUserSkills: filteredSkills.length,
           createdAt: user.createdAt
-        })),
-        totalSkills,
-        totalUserSkills,
-        currentPage: pageNum,
-        hasMore: (pageNum * limitNum) < Math.max(totalSkills, totalUserSkills),
-        filters: {
-          query: query.trim(),
-          category,
-          level,
-          type,
-          location: location.trim(),
-          rating: parseFloat(rating) || 0,
-          sortBy
+        });
+      });
+    });
+
+    console.log(`Processed ${userSkills.length} user skills (showing each skill separately)`);
+
+    // Apply pagination to the final results
+    const paginatedUserSkills = userSkills.slice(skip, skip + limit);
+
+    // Get total counts for pagination
+    const totalUserSkills = userSkills.length;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        skills: [], // Empty since we're not returning Skills collection items
+        userSkills: paginatedUserSkills,
+        pagination: {
+          currentPage: parseInt(page),
+          totalSkills: 0, // No skills from Skills collection
+          totalUserSkills,
+          totalPages: Math.ceil(totalUserSkills / limit),
+          hasMore: skip + limit < totalUserSkills
         }
       }
-    };
-
-
-
-    res.status(200).json(response);
+    });
 
   } catch (error) {
-    console.error('Search skills error:', error);
+    console.error('Search error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to search skills',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
     });
   }
 };
-
 // Get trending skills - simplified and fixed
 const getTrendingSkills = async (req, res) => {
   try {
@@ -482,6 +381,7 @@ const getPopularSearches = async (req, res) => {
 const getSkillById = async (req, res) => {
   try {
     const { skillId } = req.params;
+    console.log('Getting skill by ID:', skillId);
 
     if (!mongoose.Types.ObjectId.isValid(skillId)) {
       return res.status(400).json({
@@ -490,70 +390,214 @@ const getSkillById = async (req, res) => {
       });
     }
 
+    // First, try to find in Skill collection
     const skill = await Skill.findById(skillId).lean();
 
-    if (!skill) {
+    if (skill) {
+      // Handle Skill collection item
+      const usersWithSkill = await User.find({
+        'skills.name': skill.name,
+        isActive: true
+      })
+      .select('name email avatar bio location skills stats createdAt')
+      .lean();
+
+      const skillData = {
+        _id: skill._id,
+        name: skill.name,
+        description: skill.description,
+        category: skill.category,
+        subcategory: skill.subcategory,
+        difficulty: skill.availableLevels?.[0] || 'intermediate',
+        prerequisites: skill.prerequisites || [],
+        tags: skill.tags || [],
+        rating: skill.stats?.avgRating || 0,
+        reviewCount: skill.stats?.totalReviews || 0,
+        userCount: skill.stats?.totalUsers || usersWithSkill.length,
+        trending: skill.trending || false,
+        learningPaths: skill.learningPaths || [],
+        estimatedTime: skill.estimatedTime || null,
+        availableLevels: skill.availableLevels || ['intermediate'],
+        type: 'skill',
+        users: usersWithSkill.map(user => {
+          const userSkill = user.skills.find(s => s.name === skill.name);
+          
+          return {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            avatar: user.avatar,
+            bio: user.bio,
+            location: user.location,
+            rating: user.stats?.rating || 0,
+            reviewCount: user.stats?.totalReviews || 0,
+            level: userSkill?.level || 'intermediate',
+            yearsOfExperience: userSkill?.yearsOfExperience || 0,
+            isTeaching: userSkill?.isTeaching || false,
+            isLearning: userSkill?.isLearning || false,
+            availability: userSkill?.availability || null,
+            hourlyRate: userSkill?.hourlyRate || null,
+            responseTime: '< 2 hours',
+            completedSessions: user.stats?.totalSessions || 0
+          };
+        }),
+        relatedSkills: []
+      };
+
+      // Get related skills
+      const relatedSkills = await Skill.find({
+        category: skill.category,
+        _id: { $ne: skill._id },
+        isActive: true
+      }).limit(4).select('_id name category stats').lean();
+
+      skillData.relatedSkills = relatedSkills.map(related => ({
+        _id: related._id,
+        name: related.name,
+        category: related.category,
+        userCount: related.stats?.totalUsers || 0,
+        rating: related.stats?.avgRating || 0
+      }));
+
+      return res.status(200).json({
+        success: true,
+        data: skillData
+      });
+    }
+
+    // If not found in Skill collection, try to find user with this skill ID
+    const userWithSkill = await User.findOne({
+      'skills._id': skillId,
+      isActive: true
+    })
+    .select('name email avatar bio location skills stats createdAt')
+    .lean();
+
+    if (!userWithSkill) {
       return res.status(404).json({
         success: false,
         message: 'Skill not found'
       });
     }
 
-    // Get users who have this skill
-    const usersWithSkill = await User.find({
-      'skills.name': skill.name
+    // Find the specific skill
+    const targetSkill = userWithSkill.skills.find(skill => skill._id.toString() === skillId);
+
+    if (!targetSkill) {
+      return res.status(404).json({
+        success: false,
+        message: 'Skill not found'
+      });
+    }
+
+    // Find other users with the same skill name
+    const otherUsersWithSkill = await User.find({
+      'skills.name': targetSkill.name,
+      _id: { $ne: userWithSkill._id },
+      isActive: true
     })
-    .select('name email avatar location stats skills')
-    .limit(20)
+    .select('name email avatar bio location skills stats createdAt')
     .lean();
 
-    const userSkills = usersWithSkill
-      .map(user => {
-        const userSkill = user.skills?.find(s => s.name === skill.name);
-        if (!userSkill) return null;
-        
+    const allUsersWithSkill = [userWithSkill, ...otherUsersWithSkill];
+
+    const skillData = {
+      _id: targetSkill._id,
+      name: targetSkill.name,
+      description: targetSkill.description || `Learn ${targetSkill.name} from experienced users.`,
+      category: targetSkill.category,
+      subcategory: null,
+      difficulty: targetSkill.level || 'intermediate',
+      prerequisites: targetSkill.prerequisites || [],
+      tags: targetSkill.tags || [],
+      rating: userWithSkill.stats?.rating || 0,
+      reviewCount: userWithSkill.stats?.totalReviews || 0,
+      userCount: allUsersWithSkill.length,
+      trending: false,
+      learningPaths: [],
+      estimatedTime: null,
+      availableLevels: [targetSkill.level],
+      type: 'userSkill',
+      originalUser: {
+        _id: userWithSkill._id,
+        name: userWithSkill.name,
+        email: userWithSkill.email,
+        avatar: userWithSkill.avatar,
+        bio: userWithSkill.bio,
+        location: userWithSkill.location
+      },
+      users: allUsersWithSkill.map(user => {
+        const userSkill = user.skills.find(s => 
+          s.name.toLowerCase() === targetSkill.name.toLowerCase()
+        ) || targetSkill;
+
         return {
           _id: user._id,
-          user: {
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            avatar: user.avatar,
-            location: user.location
-          },
-          skill: {
-            _id: skill._id,
-            name: skill.name,
-            category: skill.category
-          },
+          name: user.name,
+          email: user.email,
+          avatar: user.avatar,
+          bio: user.bio,
+          location: user.location,
+          rating: user.stats?.rating || 0,
+          reviewCount: user.stats?.totalReviews || 0,
           level: userSkill.level || 'intermediate',
+          yearsOfExperience: userSkill.yearsOfExperience || 0,
           isTeaching: userSkill.isTeaching || false,
           isLearning: userSkill.isLearning || false,
-          yearsOfExperience: userSkill.yearsOfExperience || 0,
-          rating: user.stats?.rating || 0
+          availability: userSkill.availability || null,
+          hourlyRate: userSkill.hourlyRate || null,
+          responseTime: '< 2 hours',
+          completedSessions: user.stats?.totalSessions || 0
         };
-      })
-      .filter(Boolean);
+      }),
+      relatedSkills: []
+    };
+
+    // Get related skills from same category
+    const relatedUserSkills = await User.find({
+      'skills.category': targetSkill.category,
+      'skills.name': { $ne: targetSkill.name },
+      isActive: true
+    })
+    .select('skills')
+    .limit(10)
+    .lean();
+
+    const relatedSkillsMap = new Map();
+    relatedUserSkills.forEach(user => {
+      user.skills.forEach(skill => {
+        if (skill.category === targetSkill.category && 
+            skill.name !== targetSkill.name) {
+          const key = skill.name;
+          if (!relatedSkillsMap.has(key)) {
+            relatedSkillsMap.set(key, {
+              _id: skill._id,
+              name: skill.name,
+              category: skill.category,
+              userCount: 1,
+              rating: 0
+            });
+          } else {
+            const existing = relatedSkillsMap.get(key);
+            existing.userCount += 1;
+          }
+        }
+      });
+    });
+
+    skillData.relatedSkills = Array.from(relatedSkillsMap.values()).slice(0, 4);
 
     res.status(200).json({
       success: true,
-      data: {
-        skill: {
-          ...skill,
-          userCount: skill.stats?.totalUsers || 0,
-          rating: skill.stats?.avgRating || 0
-        },
-        userSkills,
-        userCount: userSkills.length
-      }
+      data: skillData
     });
 
   } catch (error) {
-    console.error('Get skill by ID error:', error);
+    console.error('Error in getSkillById:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch skill',
-      error: error.message
+      message: 'Failed to fetch skill details',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
     });
   }
 };

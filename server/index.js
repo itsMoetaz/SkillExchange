@@ -9,6 +9,7 @@ const { generalLimiter } = require('./middleware/security');
 const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profile');
 const skillsRoutes = require('./routes/skills');
+const userRoutes = require('./routes/users'); // Assuming you have a userRoutes file
 
 require('dotenv').config();
 
@@ -77,6 +78,8 @@ app.get('/', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/skills', skillsRoutes); 
+app.use('/api/users', userRoutes); // Assuming you have a userRoutes file
+
 
 app.use((err, req, res, next) => {
   console.error(err.stack);

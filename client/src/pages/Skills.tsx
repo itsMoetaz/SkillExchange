@@ -50,7 +50,6 @@ const Skills: React.FC = () => {
   // Local state for filters
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [activeTab, setActiveTab] = useState<'skills' | 'people'>('skills');
   const [filters, setFilters] = useState({
     category: '',
     level: [] as string[],
@@ -601,131 +600,63 @@ const Skills: React.FC = () => {
               )}
             </AnimatePresence>
 
-            {/* Tab Navigation */}
-            <div className={`flex rounded-xl p-1 mb-6 ${
+            {/* Header showing total user skills */}
+            <div className={`rounded-xl p-4 mb-6 ${
               isDark ? 'bg-gray-800/50' : 'bg-gray-100'
             }`}>
-              <button
-                onClick={() => setActiveTab('skills')}
-                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all duration-300 ${
-                  activeTab === 'skills'
-                    ? isDark ? 'bg-gray-700 text-white' : 'bg-white text-gray-900 shadow-sm'
-                    : isDark ? 'text-gray-400' : 'text-gray-600'
-                }`}
-              >
-                Skills ({totalSkills || 0})
-              </button>
-              <button
-                onClick={() => setActiveTab('people')}
-                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all duration-300 ${
-                  activeTab === 'people'
-                    ? isDark ? 'bg-gray-700 text-white' : 'bg-white text-gray-900 shadow-sm'
-                    : isDark ? 'text-gray-400' : 'text-gray-600'
-                }`}
-              >
-                People ({totalUserSkills || 0})
-              </button>
+              <h2 className={`text-lg font-semibold ${
+                isDark ? 'text-white' : 'text-gray-900'
+              }`}>
+                Skills Available ({totalUserSkills || 0})
+              </h2>
+              <p className={`text-sm ${
+                isDark ? 'text-gray-400' : 'text-gray-600'
+              }`}>
+                Browse individual skills from our community members
+              </p>
             </div>
 
-            {/* Error Message */}
-            {error && (
-              <div className={`rounded-xl p-4 mb-6 ${
-                isDark ? 'bg-red-900/20 border border-red-500/20' : 'bg-red-50 border border-red-200'
-              }`}>
-                <p className={`text-sm ${
-                  isDark ? 'text-red-400' : 'text-red-600'
-                }`}>
-                  {error}
-                </p>
+            {/* User Skills Results */}
+            <div>
+              {userSkills.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {userSkills.map((userSkill, index) => (
+                    <UserSkillCard 
+                      key={`user-skill-${userSkill._id || userSkill.user?._id}-${index}`} 
+                      userSkill={userSkill} 
+                      isDark={isDark} 
+                    />
+                  ))}
+                </div>
+              ) : !isSearching && (
+                <EmptyState
+                  icon={UserIcon}
+                  title="No people found"
+                  description="Try adjusting your search terms or filters to find skilled individuals"
+                  isDark={isDark}
+                  activeFilterCount={activeFilterCount}
+                  onClearFilters={clearAllFilters}
+                />
+              )}
+            </div>
+
+            {/* Load More */}
+            {hasMore && !isSearching && (skills.length > 0 || userSkills.length > 0) && (
+              <div className="text-center mt-8">
                 <button
-                  onClick={() => dispatch(clearError())}
-                  className={`text-xs mt-1 underline ${
-                    isDark ? 'text-red-300' : 'text-red-500'
-                  }`}
+                  onClick={handleLoadMore}
+                  className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-8 py-3 rounded-xl font-semibold hover:from-purple-600 hover:to-blue-600 transition-all duration-300"
                 >
-                  Dismiss
+                  Load More Results
                 </button>
               </div>
             )}
 
-            {/* Loading State */}
-            {isSearching && skills.length === 0 && userSkills.length === 0 ? (
-              <div className="flex justify-center py-12">
-                <LoadingSpinner size="lg" text="Searching skills..." />
+            {/* Loading More */}
+            {isSearching && (skills.length > 0 || userSkills.length > 0) && (
+              <div className="text-center mt-8">
+                <LoadingSpinner size="md" text="Loading more results..." />
               </div>
-            ) : (
-              <>
-                {/* Skills Tab */}
-                {activeTab === 'skills' && (
-                  <div>
-                    {skills.length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {skills.map((skill, index) => (
-                          <SkillCard 
-                            key={`skill-${skill._id}-${index}`} 
-                            skill={skill} 
-                            isDark={isDark} 
-                          />
-                        ))}
-                      </div>
-                    ) : !isSearching && (
-                      <EmptyState
-                        icon={AcademicCapIcon}
-                        title="No skills found"
-                        description="Try adjusting your search terms or filters"
-                        isDark={isDark}
-                        activeFilterCount={activeFilterCount}
-                        onClearFilters={clearAllFilters}
-                      />
-                    )}
-                  </div>
-                )}
-
-                {/* People Tab */}
-                {activeTab === 'people' && (
-                  <div>
-                    {userSkills.length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {userSkills.map((userSkill, index) => (
-                          <UserSkillCard 
-                            key={`user-skill-${userSkill._id || userSkill.user?._id}-${index}`} 
-                            userSkill={userSkill} 
-                            isDark={isDark} 
-                          />
-                        ))}
-                      </div>
-                    ) : !isSearching && (
-                      <EmptyState
-                        icon={UserIcon}
-                        title="No people found"
-                        description="Try adjusting your search terms or filters"
-                        isDark={isDark}
-                        activeFilterCount={activeFilterCount}
-                        onClearFilters={clearAllFilters}
-                      />
-                    )}
-                  </div>
-                )}
-
-                {/* Load More */}
-                {hasMore && !isSearching && (skills.length > 0 || userSkills.length > 0) && (
-                  <div className="text-center mt-8">
-                    <button
-                      onClick={handleLoadMore}
-                      className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-8 py-3 rounded-xl font-semibold hover:from-purple-600 hover:to-blue-600 transition-all duration-300"
-                    >
-                      Load More Results
-                    </button>
-                  </div>
-                )}
-
-                {/* Loading More */}
-                {isSearching && (skills.length > 0 || userSkills.length > 0) && (
-                  <div className="text-center mt-8">
-                    <LoadingSpinner size="md" text="Loading more results..." />
-                  </div>
-                )}
-              </>
             )}
           </div>
         </div>
@@ -768,139 +699,16 @@ const EmptyState: React.FC<{
   </div>
 );
 
-// Skill Card Component
-const SkillCard: React.FC<{ skill: any; isDark: boolean }> = ({ skill, isDark }) => {
-  const getLevelColor = (level: string) => {
-    switch (level?.toLowerCase()) {
-      case 'beginner': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
-      case 'intermediate': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
-      case 'advanced': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400';
-      case 'expert': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
-      default: return 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400';
-    }
-  };
-
-  const renderStars = (rating: number) => {
-    const stars = [];
-    const fullStars = Math.floor(rating);
-    const hasHalfStar = rating % 1 !== 0;
-
-    for (let i = 0; i < 5; i++) {
-      stars.push(
-        <StarIcon
-          key={i}
-          className={`w-4 h-4 ${
-            i < fullStars
-              ? 'text-yellow-400 fill-current'
-              : i === fullStars && hasHalfStar
-              ? 'text-yellow-400 fill-current opacity-50'
-              : isDark ? 'text-gray-600' : 'text-gray-300'
-          }`}
-        />
-      );
-    }
-    return stars;
-  };
-
-  return (
-    <motion.div
-      className={`rounded-2xl border p-6 transition-all duration-300 hover:shadow-lg ${
-        isDark 
-          ? 'bg-gray-800/50 border-gray-700/50 hover:bg-gray-800/80' 
-          : 'bg-white/80 border-gray-200/50 hover:bg-white'
-      }`}
-      whileHover={{ y: -4 }}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-    >
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <h3 className={`font-semibold text-lg ${
-              isDark ? 'text-white' : 'text-gray-900'
-            }`}>
-              {skill.name || 'Unknown Skill'}
-            </h3>
-            {skill.trending && (
-              <FireIcon className="w-5 h-5 text-orange-500" />
-            )}
-          </div>
-          <p className={`text-sm ${
-            isDark ? 'text-gray-400' : 'text-gray-600'
-          }`}>
-            {skill.category || 'Uncategorized'}
-          </p>
-        </div>
-        {skill.availableLevels && skill.availableLevels.length > 0 && (
-          <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${getLevelColor(skill.availableLevels[0])}`}>
-            {skill.availableLevels[0]}
-          </span>
-        )}
-      </div>
-
-      {skill.description && (
-        <p className={`text-sm mb-4 line-clamp-3 ${
-          isDark ? 'text-gray-300' : 'text-gray-700'
-        }`}>
-          {skill.description}
-        </p>
-      )}
-
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          {skill.rating > 0 && (
-            <div className="flex items-center gap-1">
-              <div className="flex">
-                {renderStars(skill.rating)}
-              </div>
-              <span className={`text-xs ${
-                isDark ? 'text-gray-400' : 'text-gray-500'
-              }`}>
-                ({skill.rating.toFixed(1)})
-              </span>
-            </div>
-          )}
-        </div>
-        {skill.userCount > 0 && (
-          <span className={`text-xs px-2 py-1 rounded-full ${
-            isDark ? 'bg-purple-900/30 text-purple-300' : 'bg-purple-100 text-purple-600'
-          }`}>
-            {skill.userCount} user{skill.userCount !== 1 ? 's' : ''}
-          </span>
-        )}
-      </div>
-
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {skill.isTeaching && (
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-              isDark ? 'bg-green-900/30 text-green-400' : 'bg-green-100 text-green-700'
-            }`}>
-              Teaching
-            </span>
-          )}
-          {skill.isLearning && (
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-              isDark ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-100 text-blue-700'
-            }`}>
-              Learning
-            </span>
-          )}
-        </div>
-        
-        <button className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-3 py-1 rounded-lg text-xs font-medium hover:from-purple-600 hover:to-blue-600 transition-all duration-300">
-          View Details
-        </button>
-      </div>
-    </motion.div>
-  );
-};
-
 // User Skill Card Component
 const UserSkillCard: React.FC<{ userSkill: any; isDark: boolean }> = ({ userSkill, isDark }) => {
+  const navigate = useNavigate();
   const user = userSkill.user || {};
-  const skills = userSkill.skills || [];
-  const primarySkill = skills[0] || {};
+  const skill = userSkill.primarySkill || {}; // This specific skill
+  const totalUserSkills = userSkill.totalUserSkills || 1;
+
+  const handleViewProfile = () => {
+    navigate(`/profile/${user._id}`);
+  };
 
   const getLevelColor = (level: string) => {
     switch (level?.toLowerCase()) {
@@ -968,19 +776,40 @@ const UserSkillCard: React.FC<{ userSkill: any; isDark: boolean }> = ({ userSkil
             {user.name || 'Unknown User'}
           </h3>
           
-          {primarySkill.name && (
+          {/* Show the specific skill for this card */}
+          {skill.name && (
             <div className="flex items-center gap-2 mb-2">
               <span className={`text-sm font-medium ${
                 isDark ? 'text-purple-400' : 'text-purple-600'
               }`}>
-                {primarySkill.name}
+                {skill.name}
               </span>
-              {primarySkill.level && (
-                <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${getLevelColor(primarySkill.level)}`}>
-                  {primarySkill.level}
+              {skill.level && (
+                <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${getLevelColor(skill.level)}`}>
+                  {skill.level}
                 </span>
               )}
             </div>
+          )}
+
+          {/* Show skill category */}
+          {skill.category && (
+            <div className="mb-2">
+              <span className={`text-xs px-2 py-1 rounded-full ${
+                isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'
+              }`}>
+                {skill.category}
+              </span>
+            </div>
+          )}
+
+          {/* Show skill description if available */}
+          {skill.description && (
+            <p className={`text-sm mb-2 line-clamp-2 ${
+              isDark ? 'text-gray-300' : 'text-gray-600'
+            }`}>
+              {skill.description}
+            </p>
           )}
 
           {user.location && (user.location.city || user.location.country) && (
@@ -1011,30 +840,34 @@ const UserSkillCard: React.FC<{ userSkill: any; isDark: boolean }> = ({ userSkil
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              {primarySkill.isTeaching && (
+              {skill.isTeaching && (
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                   isDark ? 'bg-green-900/30 text-green-400' : 'bg-green-100 text-green-700'
                 }`}>
                   Teaching
                 </span>
               )}
-              {primarySkill.isLearning && (
+              {skill.isLearning && (
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                   isDark ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-100 text-blue-700'
                 }`}>
                   Learning
                 </span>
               )}
-              {skills.length > 1 && (
+              {/* Show total skills count for this user */}
+              {totalUserSkills > 1 && (
                 <span className={`text-xs ${
                   isDark ? 'text-gray-400' : 'text-gray-500'
                 }`}>
-                  +{skills.length - 1} more
+                  +{totalUserSkills - 1} more skills
                 </span>
               )}
             </div>
             
-            <button className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-3 py-1 rounded-lg text-xs font-medium hover:from-purple-600 hover:to-blue-600 transition-all duration-300">
+            <button 
+              onClick={handleViewProfile}
+              className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-3 py-1 rounded-lg text-xs font-medium hover:from-purple-600 hover:to-blue-600 transition-all duration-300"
+            >
               View Profile
             </button>
           </div>
